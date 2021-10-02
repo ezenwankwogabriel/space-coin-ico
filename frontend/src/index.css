@@ -1,0 +1,19 @@
+label {
+  width: 300px;
+}
+
+.text-width {
+  width: 100px;
+}
+
+.button-width {
+  width: 100px;
+} 
+
+#move-phase-foward {
+  display: flex;
+}
+
+select {
+  width: 100px !important;
+}
