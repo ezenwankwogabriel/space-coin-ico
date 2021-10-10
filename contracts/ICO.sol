@@ -8,7 +8,7 @@ import "./CoinToken.sol";
 
 contract ICO is Ownable, Pausable {
 
-  SpaceCoin public token;
+  SpaceCoin spaceCoin;
 
   enum Funding {
     Private,
@@ -25,11 +25,11 @@ contract ICO is Ownable, Pausable {
   uint public totalContributed;
   bool tokenReleased;
 
+  address treasury;
   address[] public contributors;
   
   // address to funding to amount mapping
 
-  mapping(address => mapping(Funding => uint)) public fundingContributions;
   mapping(address => uint) public contributions;
   mapping(address => uint) public tokens;
   
@@ -39,32 +39,13 @@ contract ICO is Ownable, Pausable {
   event PublicContribution(address from, uint amount);
   event MovedPhaseForward(Funding value);
 
-  constructor(address treasury) {
-    token = new SpaceCoin(treasury);
-  }
-
-  modifier canContribute(address contributor) {
-    if (state == Funding.Private) {
-      require(_whitelistedAddress[contributor], "Address is not a whiteslisted contributor");
-    }
-    _;
+  constructor(address _treasury) {
+    spaceCoin = new SpaceCoin(_treasury);
+    treasury = _treasury;
   }
 
   modifier verifyState(Funding value) {
     require(state == value);
-    _;
-  }
-
-  modifier checkContributionLimit() {
-    if (state != Funding.Open) {
-      uint limit;
-      if (state == Funding.Private) {
-        limit = totalPrivateContribution;
-      } else if (state == Funding.Public) {
-        limit = totalPublicContribution;
-      }
-      require(totalContributed < limit, "BAD_REQUEST: Contribution limit reached");
-    }
     _;
   }
 
@@ -73,44 +54,41 @@ contract ICO is Ownable, Pausable {
     _;
   }
 
+  // function setSpaceCoinAddress(SpaceCoin _spaceCoin) public onlyOwner {
+  //   spaceCoin = _spaceCoin;
+  // }
+
   function addWhitelistedAddress(address _address) public onlyOwner {
     require(!_whitelistedAddress[_address], "BAD_REQUEST: Address is already whitelisted");
     _whitelistedAddress[_address] = true;
   }
 
-  function handleContribution(address from, uint amount) private {
+  modifier canContribute(address from, uint amount) {
+    uint contributed = contributions[from];
     uint max;
-    uint _contribution;
-  
-    if (state == Funding.Open) {
-      fundingContributions[from][Funding.Open] += amount;
-    } else {
-      if (state == Funding.Private) {
-        fundingContributions[from][Funding.Private] += amount;
-        _contribution = fundingContributions[from][Funding.Private];
-        max = maxPrivateContribution;
-      } else if (state == Funding.Public) {
-        max = maxPublicContribution;
-        fundingContributions[from][Funding.Public] += amount;
-        _contribution = fundingContributions[from][Funding.Public];
-      }
-      
-      require(_contribution <= max, "BAD_REQUEST: Individual contribution exceeds limit");
-    }
-  }
+    uint contributionLimit;
 
-  function contribute() public payable {
-    contribute(msg.sender);
+    if (state == Funding.Private) {
+      require(_whitelistedAddress[from], "Address is not a whiteslisted contributor");
+      contributionLimit = totalPrivateContribution;
+      max = maxPrivateContribution;
+    }
+
+    if (state == Funding.Public) {
+      contributionLimit = totalPublicContribution;
+      max = maxPublicContribution;
+    }
+
+    require(state == Funding.Open || totalContributed < contributionLimit, "BAD_REQUEST: Contribution limit reached");
+    require(state == Funding.Open || contributed + amount <= max, "BAD_REQUEST: Individual contribution exceeds maximum");
+    _;
   }
 
   function contribute(address _address) 
-    private
+    public payable
     whenNotPaused
-    canContribute(_address)
-    checkContributionLimit
+    canContribute(_address, msg.value)
   {
-    handleContribution(_address, msg.value);
-
     totalContributed += msg.value;
     contributions[_address] += msg.value;    
 
@@ -120,10 +98,6 @@ contract ICO is Ownable, Pausable {
 
     if (totalContributed == totalPublicContribution) {
       state = Funding.Open;
-    }
-    
-    if (totalContributed > totalPublicContribution) {
-      token.transferToken(_address, msg.value * 5 / 1 ether);
     }
     
     emit Contributed(_address, msg.value);
@@ -148,16 +122,16 @@ contract ICO is Ownable, Pausable {
 
   //     uint tokenAmount = contributions[contributor] * 5 / 1 ether;
 
-  //     token.transferToken(contributor, tokenAmount);
+  //     ERC20.transfer(contributor, tokenAmount);
   //   }
   // }
 
   function balanceOf(address account) public view returns (uint) {
-    return token.balanceOf(account);
+    return spaceCoin.balanceOf(account);
   }
 
   function treasuryBalance() public view onlyOwner returns (uint) {
-    return token.getTreasuryAmount();
+    return spaceCoin.getTreasuryAmount();
   }
 
   function contributedFunds() public view returns (uint) {
@@ -176,13 +150,22 @@ contract ICO is Ownable, Pausable {
     return _whitelistedAddress[_address];
   }
 
-  function withdraw() public verifyState(Funding.Open) {
+  function redeem() public verifyState(Funding.Open) {
     require(contributions[msg.sender] > 0, "BAD_REQUEST: No contributed fund");
 
     uint amount = contributions[msg.sender];
     contributions[msg.sender] = 0;
 
-    token.transferToken(msg.sender, amount * 5 / 1 ether);
+    spaceCoin.transfer(msg.sender, amount * 5 / 1 ether);
+  }
+
+  function withdraw() external {
+    require(msg.sender == treasury, "Only treasury can call withdraw eth");
+
+    uint amount = address(this).balance;
+    (bool sent, ) = address(treasury).call{ value: amount }("");
+    require(sent, "Error withdrawing eth");
+
   }
 
 }

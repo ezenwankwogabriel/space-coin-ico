@@ -1,0 +1,26 @@
+For this project
+> space coin contract (SPC) to mint space coin tokens
+> ico contract (ICO) to contribute to space coin
+
+> space coin implements ERC20 standard
+
+> ico needs to be able to transfer space coin tokens. (from initial minter to contributor)
+    > if SPC mints with its own address
+        > we need to be able to call transfer on ICO with the contract address of SPC (owner of balance)
+            > to do this you have to be authorized (msg.sender === balance owner), 
+                > one tweak is to have a private function handle this transfer, but by using _transfer from ERC20 directly (not advisable)
+    > if SPC mints with the address of ICO, then ICO has control over transfer of minted tokens as it is the owner
+        > to achieve this, SPC has to be created with the address of ICO
+            > method 1: instantiate a new SPC on ICO contract
+                > spaceCoin = new SpaceCoin()
+                > from this, msg.sender === address(ICO), what we want
+                    > but then, we loose the inheritance relationship of space coin (as Kyle says, to be confirmed)
+            > method 2: 
+                > create ICO contract
+                > then create SPC contract with address of ICO
+                    > this makes ICO the minter address
+                > have a function in ICO that adds address of SPC to IC0, to be used in making requests
+
+Question, from line 16, what would really be wrong doing this. and how different is it from line 20's implementation
+
+

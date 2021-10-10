@@ -1,11 +1,13 @@
-# PROJECT ICO
+# Project: Space Coin ICO
+
 
 ## Background
 This project implements an Initial Coin Offering: creating a token, an ICO contract, and a dapp frontend. Tokens are minted to contributors when they contribute to the ICO project.
 
 # Deployed Contract Address
 The ICO contract is deployed on the Rinkeby network, address:
-0x24E2cC0FE14BC63047be5AD15D5e700bC545d3F0
+0x36F2F5fFf8C99009a66e134E3fc3c5C2190d6357
+
 
 ## Specs
 

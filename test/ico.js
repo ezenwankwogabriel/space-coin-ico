@@ -51,8 +51,8 @@ describe("ICO", function () {
       await ico.addWhitelistedAddress(address1);
       await ico.addWhitelistedAddress(address2);
 
-      const tx1 = await ico.connect(privateAddresses[0]).contribute({ value: parseEther(1000) });
-      const tx2 = await ico.connect(privateAddresses[1]).contribute({ value: parseEther(1500) });
+      const tx1 = await ico.connect(privateAddresses[0]).contribute(address1, { value: parseEther(1000) });
+      const tx2 = await ico.connect(privateAddresses[1]).contribute(address2, { value: parseEther(1500) });
 
       expect(tx1).to.emit(ico, 'Contributed').withArgs(address1, parseEther(1000))
       expect(tx2).to.emit(ico, 'Contributed').withArgs(address2, parseEther(1500))
@@ -63,20 +63,20 @@ describe("ICO", function () {
       try {
         const { address } = privateAddresses[0];
         await ico.addWhitelistedAddress(address);
-        await ico.connect(privateAddresses[0]).contribute({ value: parseEther(1600) });
+        await ico.connect(privateAddresses[0]).contribute(address, { value: parseEther(1600) });
       } catch(ex) {
         error = true;
         message = ex.message;
       }
 
       expect(error).to.equal(true);
-      expect(message).to.include('BAD_REQUEST: Individual contribution exceeds limit');
+      expect(message).to.include('BAD_REQUEST: Individual contribution exceeds maximum');
     })
 
     it('Changes state to public when contribution is 15000 ether', async () => {
       for (let i = 0; i < privateAddresses.length; i++) {
         await ico.addWhitelistedAddress(privateAddresses[i].address);
-        await ico.connect(privateAddresses[i]).contribute({ value: parseEther(1500) });
+        await ico.connect(privateAddresses[i]).contribute(privateAddresses[i].address, { value: parseEther(1500) });
       }
 
       expect(await ico.state()).to.equal(state.public);
@@ -89,7 +89,7 @@ describe("ICO", function () {
       for (let i = 0; i < privateAddresses.length; i++) {
         const { address } = privateAddresses[i];
         await ico.addWhitelistedAddress(address);
-        await ico.connect(privateAddresses[i]).contribute({ value: parseEther(1500) });
+        await ico.connect(privateAddresses[i]).contribute(privateAddresses[i].address, { value: parseEther(1500) });
       }
     })
 
@@ -99,7 +99,7 @@ describe("ICO", function () {
 
     it('can contribute to the ico', async () => {
       const address = accounts[12].address;
-      const tx = await ico.connect(accounts[12]).contribute({ value: parseEther(1000) });
+      const tx = await ico.connect(accounts[12]).contribute(address, { value: parseEther(1000) });
 
       expect(tx).to.emit(ico, 'Contributed').withArgs(address, parseEther(1000));
     })
@@ -109,21 +109,21 @@ describe("ICO", function () {
       try {
         const address = accounts[12].address;
         expect(await ico.state()).to.equal(state.public);
-        await ico.connect(accounts[12]).contribute({ value: parseEther(1200) });
+        await ico.connect(accounts[12]).contribute(address, { value: parseEther(1200) });
       } catch(ex) {
         error = true;
         message = ex.message;
       }
 
       expect(error).to.equal(true);
-      expect(message).to.include('BAD_REQUEST: Individual contribution exceeds limit');
+      expect(message).to.include('BAD_REQUEST: Individual contribution exceeds maximum');
     })
 
-    it('changes state to open when total contribution is 30000 ether', async () => {
+    it('changes state to open when total contribution is 30000 ether: set to run with 27 accounts', async () => {
       let error = false
       try {
         for (let i = 0; i < publicAddresses.length; i++) {
-          await ico.connect(publicAddresses[i]).contribute({ value: parseEther(1000) });
+          await ico.connect(publicAddresses[i]).contribute(publicAddresses[i].address, { value: parseEther(1000) });
         }
   
         expect(await ico.totalContributed()).to.equal(parseEther(30000));
@@ -145,9 +145,10 @@ describe("ICO", function () {
   
         expect(await ico.state()).to.equal(2);
   
-        await ico.connect(publicAddresses[1]).contribute({ value: parseEther(1500) });
-  
-        await ico.connect(publicAddresses[1]).withdraw();
+        const tx = await ico.connect(publicAddresses[1]).contribute(publicAddresses[1].address, { value: parseEther(1500) });
+        expect(tx).to.emit(ico, 'Contributed').withArgs(publicAddresses[1].address, parseEther(1500))
+        const cont = await ico.connect(publicAddresses[1]).contributedFunds();
+        await ico.connect(publicAddresses[1]).redeem();
   
         const balance = await ico.connect(publicAddresses[1]).balanceOf(publicAddresses[1].address);
   
@@ -159,14 +160,14 @@ describe("ICO", function () {
     })
   })
 
-  describe('Only Owner Switch Tax', () => {
-    it('can turn tax on', async () => {
+  // describe('Only Owner Switch Tax', () => {
+  //   it('can turn tax on', async () => {
 
-    })
-    it('can turn tax off', async () => {
+  //   })
+  //   it('can turn tax off', async () => {
 
-    })
-  })
+  //   })
+  // })
 
   describe('Pausable', () => {
     it('owner can pause fundraising', async() => {
@@ -200,7 +201,7 @@ describe("ICO", function () {
       let error, message;
       try {
         await ico.pauseFundRaising();
-        await ico.connect(privateAddresses[0]).contribute({ value: parseEther(100) })
+        await ico.connect(privateAddresses[0]).contribute(privateAddresses[0].address, { value: parseEther(100) })
       } catch (ex) {
         message = ex.message;
         error = true;

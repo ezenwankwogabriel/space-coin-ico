@@ -9,25 +9,24 @@ contract SpaceCoin is ERC20, Ownable {
   bool private taxOn;
 
   address treasury;
-  uint totalSupply_ = 500000 ether;
+  uint constant totalSupply_ = 500000 ether;
 
   constructor(address _treasury) ERC20("SpaceCoin", "SPC") {
-    treasury = _treasury;
     _mint(msg.sender, totalSupply_);
+    treasury = _treasury;
   }
 
-  function _msgSender() internal view override returns (address) {
-    return super._msgSender();
-  }
-
-  function transferToken(address to, uint256 amount) public {
+  function _transfer(
+    address sender,
+    address recipient,
+    uint256 amount
+  ) internal virtual override {
     if (taxOn) {
-      uint tax = amount * 20 / 100;
-      transfer(treasury, tax);
-      transfer(to, amount - tax);
-    } else {
-      transfer(to, amount);
-    }
+      uint taxAmount = amount * 2 / 100;
+      amount = amount - taxAmount;
+      super._transfer(sender, treasury, amount * 2 / 100);
+    }  
+    super._transfer(sender, recipient, amount);
   }
 
   function toggleTax(bool state) public onlyOwner {
