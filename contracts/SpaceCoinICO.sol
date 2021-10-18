@@ -4,7 +4,7 @@ pragma solidity ^0.8.2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 
-import "./CoinToken.sol";
+import "./SpaceCoinToken.sol";
 
 contract ICO is Ownable, Pausable {
 
@@ -48,15 +48,6 @@ contract ICO is Ownable, Pausable {
     require(state == value);
     _;
   }
-
-  modifier isTokenReleased() {
-    require(!tokenReleased, "Token is already released");
-    _;
-  }
-
-  // function setSpaceCoinAddress(SpaceCoin _spaceCoin) public onlyOwner {
-  //   spaceCoin = _spaceCoin;
-  // }
 
   function addWhitelistedAddress(address _address) public onlyOwner {
     require(!_whitelistedAddress[_address], "BAD_REQUEST: Address is already whitelisted");
@@ -115,17 +106,6 @@ contract ICO is Ownable, Pausable {
     emit MovedPhaseForward(state);
   }
 
-  // function releaseTokens() private isTokenReleased verifyState(Funding.Open) {
-  //   tokenReleased = true;
-  //   for (uint8 i = 0; i < contributors.length; i++) {
-  //     address contributor = contributors[i];
-
-  //     uint tokenAmount = contributions[contributor] * 5 / 1 ether;
-
-  //     ERC20.transfer(contributor, tokenAmount);
-  //   }
-  // }
-
   function balanceOf(address account) public view returns (uint) {
     return spaceCoin.balanceOf(account);
   }
@@ -168,4 +148,9 @@ contract ICO is Ownable, Pausable {
 
   }
 
+  function withdrawSpc(uint256 amount) external {
+    uint balance = spaceCoin.balanceOf(msg.sender);
+    require(balance > amount, "INSUFFICIENT_FUNDS");
+    spaceCoin.approve(msg.sender, amount);
+  }
 }
